@@ -1,12 +1,26 @@
-import os, uuid, asyncio
-from pathlib import Path
+import os
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import PlainTextResponse
+from pathlib import Path
+
 from pipeline.planner import plan
 from pipeline.codegen import generate_code
 from pipeline.orchestrator import execute
 
-app = FastAPI(title="Data Analyst Agent (B→C→D)")
+app = FastAPI(title="Data Analyst Agent (Planner → CodeGen → Executor)")
+
+@app.get("/")
+def root():
+    return {"ok": True, "message": "POST /api/ with a 'questions.txt' file"}
+
+@app.get("/api/health")
+def health():
+    return {
+        "ok": True,
+        "has_planner_key": bool(os.getenv("OPENAI_API_KEY_PLANNER")),
+        "has_codegen_key": bool(os.getenv("OPENAI_API_KEY_CODEGEN")),
+        "has_orch_key": bool(os.getenv("OPENAI_API_KEY_ORCH")),  # accepted but not required by this MVP
+    }
 
 @app.post("/api/", response_class=PlainTextResponse)
 async def analyze(file: UploadFile = File(...)):
@@ -15,26 +29,23 @@ async def analyze(file: UploadFile = File(...)):
     if not user_text:
         raise HTTPException(400, "Empty input")
 
-    # Budget guard (coarse)
-    budget = int(os.getenv("PIPELINE_BUDGET", "160"))
+    # Stage B: Planner
+    try:
+        ep = plan(user_text)
+    except Exception as e:
+        raise HTTPException(500, f"Planner failed: {e}")
 
-    # B: Planner
-    ep = plan(user_text)
+    # Stage C: CodeGen
+    try:
+        cp = generate_code(ep)
+    except Exception as e:
+        raise HTTPException(500, f"Code generation failed: {e}")
 
-    # C: CodeGen
-    cp = generate_code(ep)
+    # Stage D: Orchestrate (scrape + run)
+    try:
+        out = execute(ep, cp)
+    except Exception as e:
+        raise HTTPException(500, f"Execution failed: {e}")
 
-    # D: Orchestrate (scrape + run)
-    out = execute(ep, cp)
-
-    # Return exactly what the program printed
+    # Return exactly what the generated script printed
     return out
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", "8000")),
-        reload=False
-    )
