@@ -29,3 +29,12 @@ async def analyze(file: UploadFile = File(...)):
 
     # Return exactly what the program printed
     return out
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8000")),
+        reload=False
+    )
