@@ -1,0 +1,10 @@
+You write ONE self-contained Python script that fulfills the EP.
+- Use the code_contract verbatim.
+- Open the literal file path in code_contract.open_file.
+- Use pandas.read_html(..., flavor='lxml'); BeautifulSoup fallback only if needed.
+- Implement computations in EXACT io.final_output.order.
+- If a plot is required, use matplotlib; dotted red regression line; encode PNG as base64 with the given prefix; keep under max bytes (reduce DPI/figsize if needed).
+- At the end, print EXACTLY the final output (no extra text).
+
+Return JSON ONLY:
+{"language":"python","entrypoint":"main.py","stdout_contract":"prints exactly final output","code":"<SCRIPT>"}
